@@ -93,13 +93,15 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
 
     """
 
-    def fit(self, y):
+    def fit(self, y, warm_start=False):
         """Fit label encoder
 
         Parameters
         ----------
         y : array-like of shape (n_samples,)
             Target values.
+        warm_start : boolean
+            When set to ``True``, reuse the labels from previous call to fit
 
         Returns
         -------
@@ -107,16 +109,25 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
         """
         y = column_or_1d(y, warn=True)
         _check_numpy_unicode_bug(y)
-        self.classes_ = np.unique(y)
+        if warm_start and hasattr(self, 'classes_'):
+            classes = np.unique(y)
+            # check if there are new classes
+            if len(np.intersect1d(classes, self.classes_)) < len(classes):
+                diff = np.setdiff1d(classes, self.classes_)
+                self.classes_ = np.hstack((self.classes_, diff))
+        else:
+            self.classes_ = np.unique(y)
         return self
 
-    def fit_transform(self, y):
+    def fit_transform(self, y, warm_start=False):
         """Fit label encoder and return encoded labels
 
         Parameters
         ----------
         y : array-like of shape [n_samples]
             Target values.
+        warm_start : boolean
+            When set to ``True``, reuse the labels from previous call to fit
 
         Returns
         -------
@@ -124,7 +135,15 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
         """
         y = column_or_1d(y, warn=True)
         _check_numpy_unicode_bug(y)
-        self.classes_, y = np.unique(y, return_inverse=True)
+        if warm_start and hasattr(self, 'classes_'):
+            classes = np.unique(y)
+            # check if there are new classes
+            if len(np.intersect1d(classes, self.classes_)) < len(classes):
+                diff = np.setdiff1d(classes, self.classes_)
+                self.classes_ = np.hstack((self.classes_, diff))
+            y = np.searchsorted(self.classes_, y)
+        else:
+            self.classes_, y = np.unique(y, return_inverse=True)
         return y
 
     def transform(self, y):
